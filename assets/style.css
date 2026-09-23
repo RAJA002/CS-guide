@@ -152,6 +152,7 @@ a { color: inherit; }
 .bot-msg { margin-bottom: 12px; }
 .bot-msg.user { text-align: right; }
 .bot-msg .bubble { display: inline-block; padding: 8px 12px; max-width: 85%; text-align: left; overflow-wrap: break-word; word-break: break-word; }
+.bot-msg.assistant .bubble { max-width: 96%; }
 .bot-msg .bubble p { margin: 0 0 8px; }
 .bot-msg .bubble p:last-child { margin-bottom: 0; }
 .bot-msg .bubble h3, .bot-msg .bubble h4 { font-size: 0.95rem; margin: 10px 0 4px; }
@@ -159,6 +160,10 @@ a { color: inherit; }
 .bot-msg .bubble ul { margin: 4px 0 8px; padding-left: 18px; }
 .bot-msg .bubble hr { border: none; border-top: 1px solid var(--rule); margin: 8px 0; }
 .bot-msg .bubble code { background: rgba(0,0,0,0.06); padding: 1px 4px; font-size: 0.85em; }
+.bot-msg .bubble table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; font-size: 0.85em; }
+.bot-msg .bubble th, .bot-msg .bubble td { border: 1px solid var(--rule); padding: 4px 6px; text-align: left; vertical-align: top; }
+.bot-msg .bubble th { background: var(--parchment-deep); }
+.bot-msg .bubble blockquote { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--brass); background: var(--parchment-deep); font-style: italic; }
 .bot-msg.user .bubble { background: var(--navy); color: var(--parchment); }
 .bot-msg.assistant .bubble { background: var(--parchment-deep); }
 .bot-msg.system .bubble { background: none; color: var(--ink-soft); font-style: italic; font-size: 0.82rem; padding: 0; }
