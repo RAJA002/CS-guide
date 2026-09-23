@@ -24,8 +24,11 @@ function injectBotWidget() {
   panel.innerHTML = `
     <div class="bot-head">
       <span>CS Study Bot</span>
-      <button id="bot-settings-toggle" title="Settings">⚙</button>
-      <button id="bot-close" title="Close">✕</button>
+      <div class="bot-head-actions">
+        <button id="bot-maximize" title="Maximize">⤢</button>
+        <button id="bot-settings-toggle" title="Settings">⚙</button>
+        <button id="bot-close" title="Close">✕</button>
+      </div>
     </div>
     <div id="bot-body">
       <div class="bot-messages" id="bot-messages"></div>
@@ -62,6 +65,11 @@ function injectBotWidget() {
     }
   });
   document.getElementById("bot-close").addEventListener("click", () => panel.classList.remove("open"));
+  document.getElementById("bot-maximize").addEventListener("click", () => {
+    panel.classList.toggle("maximized");
+    document.getElementById("bot-maximize").textContent = panel.classList.contains("maximized") ? "⤡" : "⤢";
+    document.getElementById("bot-maximize").title = panel.classList.contains("maximized") ? "Restore" : "Maximize";
+  });
   document.getElementById("bot-settings-toggle").addEventListener("click", () => {
     showSettings(document.getElementById("bot-settings-panel").style.display === "none");
   });
@@ -113,18 +121,33 @@ function renderMarkdown(raw) {
 
     if (trimmed === "") { closeList(); i++; continue; }
 
-    // Table: a header row "| a | b |" followed by a separator row "|---|---|"
-    if (/^\|.*\|$/.test(trimmed) && lines[i + 1] && /^\|[\s:|-]+\|$/.test(lines[i + 1].trim())) {
+    // Table: any consecutive block of "| ... | ... |" lines
+    if (/^\|.*\|$/.test(trimmed)) {
       closeList();
-      const headerCells = trimmed.slice(1, -1).split("|").map(c => c.trim());
-      html += "<table><thead><tr>" + headerCells.map(c => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>";
-      i += 2;
+      const rows = [];
       while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
-        const cells = lines[i].trim().slice(1, -1).split("|").map(c => c.trim());
-        html += "<tr>" + cells.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
+        rows.push(lines[i].trim());
         i++;
       }
-      html += "</tbody></table>";
+      const sepIdx = rows.findIndex(r => /^\|[\s:|-]+\|$/.test(r));
+      html += `<div class="table-scroll"><table>`;
+      if (sepIdx === 1) {
+        const headerCells = rows[0].slice(1, -1).split("|").map(c => c.trim());
+        html += "<thead><tr>" + headerCells.map(c => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>";
+        for (let r = 2; r < rows.length; r++) {
+          if (/^\|[\s:|-]+\|$/.test(rows[r])) continue;
+          const cells = rows[r].slice(1, -1).split("|").map(c => c.trim());
+          html += "<tr>" + cells.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
+        }
+        html += "</tbody>";
+      } else {
+        rows.forEach(row => {
+          if (/^\|[\s:|-]+\|$/.test(row)) return;
+          const cells = row.slice(1, -1).split("|").map(c => c.trim());
+          html += "<tr>" + cells.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
+        });
+      }
+      html += "</table></div>";
       continue;
     }
 
@@ -152,7 +175,9 @@ function renderMarkdown(raw) {
 
   function inline(text) {
     return text
+      .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
       .replace(/`(.+?)`/g, "<code>$1</code>");
   }
 }
