@@ -104,23 +104,49 @@ function renderMarkdown(raw) {
   const lines = escapeHtml(raw).split("\n");
   let html = "";
   let inList = false;
+  let i = 0;
   const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
 
-  lines.forEach(line => {
+  while (i < lines.length) {
+    const line = lines[i];
     const trimmed = line.trim();
-    if (trimmed === "" ) { closeList(); return; }
-    if (/^-{3,}$/.test(trimmed)) { closeList(); html += "<hr>"; return; }
+
+    if (trimmed === "") { closeList(); i++; continue; }
+
+    // Table: a header row "| a | b |" followed by a separator row "|---|---|"
+    if (/^\|.*\|$/.test(trimmed) && lines[i + 1] && /^\|[\s:|-]+\|$/.test(lines[i + 1].trim())) {
+      closeList();
+      const headerCells = trimmed.slice(1, -1).split("|").map(c => c.trim());
+      html += "<table><thead><tr>" + headerCells.map(c => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>";
+      i += 2;
+      while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
+        const cells = lines[i].trim().slice(1, -1).split("|").map(c => c.trim());
+        html += "<tr>" + cells.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
+        i++;
+      }
+      html += "</tbody></table>";
+      continue;
+    }
+
+    if (/^-{3,}$/.test(trimmed)) { closeList(); html += "<hr>"; i++; continue; }
+
     const heading = trimmed.match(/^#{1,4}\s+(.*)$/);
-    if (heading) { closeList(); html += `<h4>${inline(heading[1])}</h4>`; return; }
+    if (heading) { closeList(); html += `<h4>${inline(heading[1])}</h4>`; i++; continue; }
+
+    const quote = trimmed.match(/^&gt;\s?(.*)$/);
+    if (quote) { closeList(); html += `<blockquote>${inline(quote[1])}</blockquote>`; i++; continue; }
+
     const bullet = trimmed.match(/^[-*]\s+(.*)$/);
     if (bullet) {
       if (!inList) { html += "<ul>"; inList = true; }
       html += `<li>${inline(bullet[1])}</li>`;
-      return;
+      i++; continue;
     }
+
     closeList();
     html += `<p>${inline(trimmed)}</p>`;
-  });
+    i++;
+  }
   closeList();
   return html;
 
