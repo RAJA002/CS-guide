@@ -94,13 +94,56 @@ function injectBotWidget() {
   }
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Lightweight markdown renderer — handles the patterns Groq's models actually
+// use in replies (bold, headings, bullet lists, horizontal rules, paragraphs).
+function renderMarkdown(raw) {
+  const lines = escapeHtml(raw).split("\n");
+  let html = "";
+  let inList = false;
+  const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed === "" ) { closeList(); return; }
+    if (/^-{3,}$/.test(trimmed)) { closeList(); html += "<hr>"; return; }
+    const heading = trimmed.match(/^#{1,4}\s+(.*)$/);
+    if (heading) { closeList(); html += `<h4>${inline(heading[1])}</h4>`; return; }
+    const bullet = trimmed.match(/^[-*]\s+(.*)$/);
+    if (bullet) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += `<li>${inline(bullet[1])}</li>`;
+      return;
+    }
+    closeList();
+    html += `<p>${inline(trimmed)}</p>`;
+  });
+  closeList();
+  return html;
+
+  function inline(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/`(.+?)`/g, "<code>$1</code>");
+  }
+}
+
 function addMessage(role, text) {
   botHistory.push({ role, text });
   const messages = document.getElementById("bot-messages");
   const div = document.createElement("div");
   div.className = `bot-msg ${role}`;
-  div.innerHTML = `<span class="bubble"></span>`;
-  div.querySelector(".bubble").textContent = text;
+  const bubble = document.createElement("span");
+  bubble.className = "bubble";
+  if (role === "assistant") {
+    bubble.innerHTML = renderMarkdown(text);
+  } else {
+    bubble.textContent = text;
+  }
+  div.appendChild(bubble);
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
 }
