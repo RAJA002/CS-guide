@@ -121,30 +121,30 @@ function renderMarkdown(raw) {
 
     if (trimmed === "") { closeList(); i++; continue; }
 
-    // Table: any consecutive block of "| ... | ... |" lines
-    if (/^\|.*\|$/.test(trimmed)) {
+    // Table: any consecutive block of pipe-delimited lines (tolerates a
+    // truncated trailing row if the AI's reply got cut off mid-sentence)
+    if (/^\|/.test(trimmed)) {
       closeList();
       const rows = [];
-      while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
+      while (i < lines.length && /^\|/.test(lines[i].trim())) {
         rows.push(lines[i].trim());
         i++;
       }
-      const sepIdx = rows.findIndex(r => /^\|[\s:|-]+\|$/.test(r));
+      const cellsOf = row => row.replace(/^\|/, "").replace(/\|\s*$/, "").split("|").map(c => c.trim());
+      const sepIdx = rows.findIndex(r => /^\|[\s:|-]+\|?$/.test(r));
       html += `<div class="table-scroll"><table>`;
       if (sepIdx === 1) {
-        const headerCells = rows[0].slice(1, -1).split("|").map(c => c.trim());
+        const headerCells = cellsOf(rows[0]);
         html += "<thead><tr>" + headerCells.map(c => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>";
         for (let r = 2; r < rows.length; r++) {
-          if (/^\|[\s:|-]+\|$/.test(rows[r])) continue;
-          const cells = rows[r].slice(1, -1).split("|").map(c => c.trim());
-          html += "<tr>" + cells.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
+          if (/^\|[\s:|-]+\|?$/.test(rows[r])) continue;
+          html += "<tr>" + cellsOf(rows[r]).map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
         }
         html += "</tbody>";
       } else {
         rows.forEach(row => {
-          if (/^\|[\s:|-]+\|$/.test(row)) return;
-          const cells = row.slice(1, -1).split("|").map(c => c.trim());
-          html += "<tr>" + cells.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
+          if (/^\|[\s:|-]+\|?$/.test(row)) return;
+          html += "<tr>" + cellsOf(row).map(c => `<td>${inline(c)}</td>`).join("") + "</tr>";
         });
       }
       html += "</table></div>";
@@ -239,7 +239,7 @@ function openBotWithPrompt(promptText, paperId) {
 }
 
 async function callGroq(key, userText) {
-  const systemPrompt = `You are a study assistant for a student preparing for the ICSI Company Secretary (CS) Executive Programme, Group 2 (Module 2): Paper 5 Capital Market & Securities Laws, Paper 6 Economic, Commercial & Intellectual Property Laws, Paper 7 Tax Laws & Practice. Answer clearly and concisely, structured for exam revision. If asked about a specific provision, section number, or recent amendment, note that the student should verify the exact current text against their official ICSI study material, since law can change after your knowledge cutoff.`;
+  const systemPrompt = `You are a study assistant for a student preparing for the ICSI Company Secretary (CS) Executive Programme, Group 2 (Module 2): Paper 5 Capital Market & Securities Laws, Paper 6 Economic, Commercial & Intellectual Property Laws, Paper 7 Tax Laws & Practice. Answer clearly and concisely, structured for exam revision. Keep answers reasonably compact — prefer short tables (2-3 columns, under 8 rows) or bullet points over long, wide tables, since this is a narrow chat window. If asked about a specific provision, section number, or recent amendment, note that the student should verify the exact current text against their official ICSI study material, since law can change after your knowledge cutoff.`;
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -258,7 +258,7 @@ async function callGroq(key, userText) {
     body: JSON.stringify({
       model: getModel(),
       messages,
-      max_tokens: 700,
+      max_tokens: 1600,
       temperature: 0.3,
     }),
   });
